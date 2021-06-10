@@ -1,38 +1,19 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs'
 
 const app = express(); 
 
 app.use(cors());
 app.use(express.json());
 
-let posts = [{
-    id: 1,
-    title: 'Hello World TESTANDO HARD CODED NO SERVER',
-    coverUrl: 'https://miro.medium.com/max/1024/1*OohqW5DGh9CQS4hLY5FXzA.png',
-    contentPreview: 'Esta é a estrutura de um post esperado pelo front-end',
-    content: 'Este é o conteúdo do post, o que realmente vai aparecer na página do post...',
-    commentCount: 2,
-    comments: [{
-        id: 1,
-        postId: 1,
-        author: 'João',
-        content: 'Muito bom esse post! Tá de parabéns'
-    }],
-},{
-    id: 2,
-    title: 'Hello World TESTANDO MAIS UMHARD CODED NO SERVER',
-    coverUrl: 'https://miro.medium.com/max/1024/1*OohqW5DGh9CQS4hLY5FXzA.png',
-    contentPreview: 'Esta é a estrutura de um post esperado pelo front-end',
-    content: 'Este é o conteúdo do post, o que realmente vai aparecer na página do post...',
-    commentCount: 2,
-    comments: [{
-        id: 1,
-        postId: 2,
-        author: 'Maria',
-        content: 'Muito bom esse post! Tá de parabéns'
-    }],
-}];
+let posts = [];
+let commentCount = 0;
+
+if (fs.existsSync("posts.txt")) {
+    posts = JSON.parse(fs.readFileSync("posts.txt"));
+}
+    
 
 app.get("/posts", (req, res) => {
     res.send(posts);
@@ -46,25 +27,52 @@ app.get("/posts/:id", (req, res) => {
 
 app.post("/posts", (req, res) => {
    const newPost = req.body;
-   posts.push(newPost);
-   res.send("ok")     
+   posts.push({id: posts.length + 1, comments:[] , commentCount, ...newPost, contentPreview: "La la la não sei"});
+   fs.writeFileSync("posts.txt", JSON.stringify(posts));
+   res.send("OK")     
 });
 
 app.get("/posts/:id/comments", (req, res) => {
     const id = parseInt(req.params.id);  
-    const postClicked = posts.find((post) => post.id === id);    
-    console.log(postClicked.comments);      
+    const postClicked = posts.find((post) => post.id === id);        
     res.send(postClicked.comments);
 });
 
-app.post("/posts/:id/comments", (req, res) => {
-    const id = parseInt(req.params.id);   
+app.post("/posts/:id/comments", (req, res) => {        
+    const id = parseInt(req.params.id);      
     const postClicked = posts.find((post) => post.id === id);  
-    const commentsOf = postClicked.comments;    
-    const newComment = req.body;
-    commentsOf.push(newComment);
-    res.send(commentsOf)     
+    const commentsOf = postClicked.comments;      
+    const { author, content} = req.body;
+
+    const newComment = {
+        author,
+        content,
+        commentCount: commentCount++
+    };  
+
+    commentsOf.push(newComment);   
+    console.log(commentsOf)
+    fs.writeFileSync("posts.txt", JSON.stringify(posts));
+    res.send(commentsOf);           
 });
+
+app.put("/posts/:id",  (req, res) => {
+    const id = parseInt(req.params.id); 
+    const postClicked = posts.find((post) => post.id === id);    
+    postClicked.title = req.body.title;
+    postClicked.content = req.body.content;
+    postClicked.coverUrl = req.body.coverUrl; 
+    fs.writeFileSync("posts.txt", JSON.stringify(posts)); 
+    res.send("Ok")
+});
+
+app.delete("/posts/:id",  (req, res) => {
+    const id = parseInt(req.params.id);
+    const postClicked = posts.find((post) => post.id === id);    
+    posts.splice(postClicked.id-1, 1)  
+    fs.writeFileSync("posts.txt", JSON.stringify(posts));
+    res.send("Ok")
+})
 
 app.listen(4000);
 
